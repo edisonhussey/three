@@ -1,6 +1,7 @@
 // main.js
 import World from './world.js';
-
+const editableText = document.getElementById('editable-container');
+// editableText.textContent="sjsij"
 // let a;
 // a=new World("carl");
 // a.greet();
@@ -68,7 +69,7 @@ let isMouseDown = false;
 let direction=false;
 let camera;
 camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 1.5, 5);
+camera.position.set(50, 50, 50);
 
 
 let scene;
@@ -95,11 +96,21 @@ camera.add(listener);
 const world = new World(2989283928398);  // Your procedural world instance
 // world.generate3DTerrain(100,1)
 
+// const blockGeometry1 = new THREE.BoxGeometry(1, 1, 1);
+// const blockMaterial = new THREE.MeshBasicMaterial({ color: 0x888888 });
+const textureLoader = new THREE.TextureLoader();
+const dirtTexture = textureLoader.load('dirt.png');
+
+// Create box geometry and material
 const blockGeometry1 = new THREE.BoxGeometry(1, 1, 1);
-const blockMaterial = new THREE.MeshBasicMaterial({ color: 0x888888 });
+const blockMaterial = new THREE.MeshBasicMaterial({
+    map: dirtTexture, // Apply texture with borders
+    side: THREE.DoubleSide
+});
+
 
 // Create an InstancedMesh with a maximum number of instances
-const maxInstances = 125000; // Adjust based on the expected number of blocks
+const maxInstances = 1000000; // Adjust based on the expected number of blocks
 const instancedMesh = new THREE.InstancedMesh(blockGeometry1, blockMaterial, maxInstances);
 
 // Matrix for transforming each instance
@@ -109,10 +120,12 @@ const matrix = new THREE.Matrix4();
 let instanceIndex = 0;
 // ssh-keygen -t ed25519 -C "edisonhussey@gmail.com"
 
-console.log(world.generate3DTerrain(50,50,50))
-for(let i=0;i<50;i++){
-    for(let j=0;j<50;j++){
-        for(let k=0;k<50;k++){
+
+
+console.log(world.generate3DTerrain(100,100,100))
+for(let i=0;i<100;i++){
+    for(let j=0;j<100;j++){
+        for(let k=0;k<100;k++){
             if(world.terrain[i][j][k]==1){
                 matrix.setPosition(i,k,j)
                 instancedMesh.setMatrixAt(instanceIndex, matrix)
@@ -361,36 +374,6 @@ function renderTerrain() {
 
 
 
-// function renderTerrain() {
-//     // Clear the scene
-//     scene.clear();
-
-//     // Create and add cubes based on the world matrix
-//     for (let x = 0; x < size; x++) {
-//         for (let y = 0; y < size; y++) {
-//             for (let z = 0; z < size; z++) {
-//                 if (worldMatrix[x][y][z]) {
-//                     const textureLoader = new THREE.TextureLoader();
-//                     // const texture = textureLoader.load('dirt.png'); // URL to your texture
-//                     const boxMaterial = new THREE.MeshBasicMaterial({ map: dirt });
-
-
-//                     const box = new THREE.Mesh(boxGeometry, boxMaterial);
-//                     box.position.set(x - size / 2, y - size / 2, z - size / 2);
-//                     scene.add(box);
-//                 }
-//             }
-//         }
-//     }
-// }
-// renderTerrain()
-
-// function setupScene() {
-    // scene = new THREE.Scene();
-    // const gridHelper = new THREE.GridHelper(200, 50);
-    // scene.add(gridHelper);
-
-// }
 
 function setupCamera() {
     // camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -412,7 +395,7 @@ function setupLighting() {
     scene.add(ambientLight);
     
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    directionalLight.position.set(10, 10, 10).normalize();
+    directionalLight.position.set(50, 70, 50).normalize();
     scene.add(directionalLight);
 }
 
@@ -457,8 +440,10 @@ function createEnvironment(texture) {
 }
 
 function updateGameObjects(deltaTime) {
+    editableText.textContent=`x: ${Math.floor(camera.position.x)}, y: ${Math.floor(camera.position.y)}, z${Math.floor(camera.position.z)}`
     updatePlayer(deltaTime);
     updateEnemies(deltaTime);
+    
 }
 function createBullet() {
     const initialPosition = camera.position.clone(); // Start bullet at camera's position
@@ -532,7 +517,7 @@ function rotateVector(x,z, angle) {
 }
 
 class Jumper {
-    constructor(gravity = -9.8, jumpVelocity = 50) {
+    constructor(gravity = -9.8, jumpVelocity = 5) {
         this.gravity = gravity;          // Gravitational acceleration (m/s^2)
         this.jumpVelocity = jumpVelocity; // Initial jump velocity (m/s)
         this.velocityY = 0;              // Current vertical speed
@@ -546,13 +531,18 @@ class Jumper {
     }
 
     // Start the jump if not already jumping
-    startJump() {
+    startJump(x) {
         // console.log('hi')
         if (!this.jumping) {
             this.jumping = true;
-            this.velocityY = this.jumpVelocity;
+            this.velocityY = x
         }
     }
+
+    // startFall(){
+    //     this.jumping=true;
+    //     this.velocityY = 0;
+    // }
 
     // Update the vertical position and velocity
     update(deltaTime) {
@@ -563,7 +553,7 @@ class Jumper {
         // }
         // Normalize a and b
         if(this.autoJump && !this.jumping){
-            this.startJump()
+            this.startJump(this.jumpVelocity)
         }
         const magnitude = Math.sqrt(xDirection**2+zDirection**2);
         let xNorm = xDirection / magnitude;
@@ -578,71 +568,119 @@ class Jumper {
             camera.position.y += this.velocityY * deltaTime;
 
             // Stop jumping if the velocity is below a threshold (or if the character lands)
-            if (camera.position.y <= 0 ) {
-                camera.position.y = 0;  // Ensure the camera doesn't go below ground level
+            if (world.terrain[Math.floor(camera.position.x)][Math.floor(camera.position.z)][Math.floor(camera.position.y)]==1) {
+                // camera.position.y = 0;  // Ensure the camera doesn't go below ground level
+                camera.position.y=Math.ceil(camera.position.y)
                 this.velocityY = 0;
                 this.jumping = false;
             }
         }
 
+        let xDif=0
+        let zDif=0
+
         if(this.moveForward){
             if(this.moveRight){
                 const values=rotateVector(xNorm,zNorm, Math.PI/4)
-                camera.position.x+=values.x
-                camera.position.z+=values.z
+                // camera.position.x+=values.x
+                // camera.position.z+=values.z
+
+                xDif=values.x
+                zDif=values.z
                 
 
             }
             else if(this.moveLeft){
                 const values=rotateVector(xNorm,zNorm, Math.PI*7/4)
-                camera.position.x+=values.x
-                camera.position.z+=values.z
+                // camera.position.x+=values.x
+                // camera.position.z+=values.z
+                xDif=values.x
+                zDif=values.z
 
             }else{
-                camera.position.z+=zNorm
-                camera.position.x+=xNorm
+                // camera.position.z+=zNorm
+                // camera.position.x+=xNorm
+                xDif=xNorm
+                zDif=zNorm
 
             }
         }
         else if(this.moveBackward){
             if(this.moveLeft){
                 const values=rotateVector(xNorm,zNorm, Math.PI*5/4)
-                camera.position.x+=values.x
-                camera.position.z+=values.z
+                // camera.position.x+=values.x
+                // camera.position.z+=values.z
+                xDif=values.x
+                zDif=values.z
 
             }
             else if(this.moveRight){
                 const values=rotateVector(xNorm,zNorm, Math.PI*3/4)
-                camera.position.x+=values.x
-                camera.position.z+=values.z
+                // camera.position.x+=values.x
+                // camera.position.z+=values.z
+                xDif=values.x
+                zDif=values.z
 
             }
             else{
                 const values=rotateVector(xNorm,zNorm, Math.PI)
-                camera.position.x+=values.x
-                camera.position.z+=values.z
+                // camera.position.x+=values.x
+                // camera.position.z+=values.z
+                xDif=values.x
+                zDif=values.z
 
             }
 
         }
         if(this.moveLeft){
             const values=rotateVector(xNorm,zNorm, Math.PI*3/2)
-                camera.position.x+=values.x
-                camera.position.z+=values.z
+                // camera.position.x+=values.x
+                // camera.position.z+=values.z
+                xDif=values.x
+                zDif=values.z
         }
         if(this.moveRight){
             const values=rotateVector(xNorm,zNorm, Math.PI/2)
-                camera.position.x+=values.x
-                camera.position.z+=values.z
+                // camera.position.x+=values.x
+                // camera.position.z+=values.z
+                xDif=values.x
+                zDif=values.z
         }
+        // console.log(this.jumping)
+        // console.log(Math.floor(camera.position.x+xDif),Math.floor(camera.position.z+zDif),Math.floor(camera.position.y))
+        if(world.terrain[Math.floor(camera.position.x+xDif)][Math.floor(camera.position.z+zDif)][Math.floor(camera.position.y)]==0){
+            camera.position.x+=xDif
+            camera.position.z+=zDif
+        }
+        // if(world.terrain[Math.floor(camera.position.x)][Math.floor(camera.position.z)][Math.floor(camera.position.y)-1]==)
+        // {
+
+        // }
+        console.log(this.jumping)
+        if(this.jumping==false){
+            if(world.terrain[Math.floor(camera.position.x+xDif)][Math.floor(camera.position.z+zDif)][Math.floor(camera.position.y)-1]==0){
+                this.startJump(0)
+            }
+        }
+
+        // }
+
+
+        // else{}
+        // camera.position.x+=xDif
+        // camera.position.z+=zDif
+
+
     }
 }
 
 
-const jumper = new Jumper();
+let jumper = new Jumper();
 
 // Function to update camera direction based on yaw and pitch
 function updateCameraDirection() {
+
+    // editableText.textContent=`x: ${camera.position.x}, y: ${camera.position.y}, z${camera.position.z}`
     // Create a quaternion from yaw and pitch
     const quat = new THREE.Quaternion()
         .setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
